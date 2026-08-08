@@ -1,0 +1,297 @@
+<form version="1.1" theme="light">
+  <label>Web Server Security Analysis &amp; Threat Detection Dashboard</label>
+  <description>This dashboard provides real-time security monitoring, web traffic analysis, and threat detection for web server access logs. It tracks HTTP request metrics, identifies automated vulnerability scanners, detects web application attacks, monitors server error responses, and analyzes crawler activities using interactive filtering selectors.</description>
+  <!-- ROW 1: Key Metrics (Single Value Cards) -->
+  <!-- ROW 2: Traffic Trends & Time-Series Analysis -->
+  <!-- ROW 3: Threat Intelligence & Scanner Detection -->
+  <!-- ROW 4: Web Server Resource & Endpoint Health -->
+  <!-- ROW 5: User Agents & Crawler Activity -->
+  <!-- ROW 6: Data Transfer, Traversal & Live Stream Table -->
+  <fieldset submitButton="false" autoRun="true">
+    <input type="time" token="time_tok">
+      <label>1. Select Time Range</label>
+      <default>
+        <earliest>0</earliest>
+        <latest></latest>
+      </default>
+    </input>
+    <input type="radio" token="traffic_scope_tok">
+      <label>2. Traffic Type</label>
+      <choice value="*">All Traffic</choice>
+      <choice value="(user_agent=&quot;*sqlmap*&quot; OR user_agent=&quot;*Nikto*&quot; OR user_agent=&quot;*python-requests*&quot; OR user_agent=&quot;*botnet-checker*&quot; OR user_agent=&quot;*curl*&quot;)">Malicious Scanners</choice>
+      <choice value="(user_agent=&quot;*Googlebot*&quot; OR user_agent=&quot;*Bingbot*&quot; OR user_agent=&quot;*AhrefsBot*&quot; OR user_agent=&quot;*SEMrushBot*&quot;)">Bots/Crawlers</choice>
+      <default>*</default>
+    </input>
+    <input type="dropdown" token="status_tok">
+      <label>3. Status Code Filter</label>
+      <choice value="*">All</choice>
+      <choice value="200">200 (OK)</choice>
+      <choice value="302">302 (Redirect)</choice>
+      <choice value="401">401 (Unauthorized)</choice>
+      <choice value="403">403 (Forbidden)</choice>
+      <choice value="404">404 (Not Found)</choice>
+      <choice value="500">500 (Server Error)</choice>
+      <choice value="503">503 (Service Unavailable)</choice>
+      <default>*</default>
+    </input>
+    <input type="dropdown" token="method_tok">
+      <label>4. HTTP Method</label>
+      <choice value="*">All</choice>
+      <choice value="GET">GET</choice>
+      <choice value="POST">POST</choice>
+      <default>*</default>
+    </input>
+    <input type="text" token="ip_tok">
+      <label>5. Filter Source IP</label>
+      <default>*</default>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <single>
+        <title>Panel 1: Total HTTP Requests</title>
+        <search>
+          <query>index=web_security_logs status="$status_tok$" method="$method_tok$" ip="$ip_tok$" $traffic_scope_tok$ | stats count</query>
+          <earliest>$time_tok.earliest$</earliest>
+          <latest>$time_tok.latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Panel 2: Unique Client IPs</title>
+        <search>
+          <query>index=web_security_logs status="$status_tok$" method="$method_tok$" ip="$ip_tok$" $traffic_scope_tok$ | stats dc(ip)</query>
+          <earliest>$time_tok.earliest$</earliest>
+          <latest>$time_tok.latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Panel 3: High-Risk Attacks Detected</title>
+        <search>
+          <query>index=web_security_logs status="$status_tok$" method="$method_tok$" ip="$ip_tok$" $traffic_scope_tok$ (uri="*UNION*" OR uri="*SELECT*" OR uri="*&lt;script&gt;*" OR uri="*OR '1'='1*") | stats count</query>
+          <earliest>$time_tok.earliest$</earliest>
+          <latest>$time_tok.latest$</latest>
+        </search>
+        <option name="rangeColors">["0x53a051","0xdc4e41"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Panel 4: Data Transferred (MB)</title>
+        <search>
+          <query>index=web_security_logs status="$status_tok$" method="$method_tok$" ip="$ip_tok$" $traffic_scope_tok$ | stats sum(bytes) as total_bytes | eval MB=round(total_bytes/1024/1024, 2) | fields MB</query>
+          <earliest>$time_tok.earliest$</earliest>
+          <latest>$time_tok.latest$</latest>
+        </search>
+        <option name="numberPrecision">0.00</option>
+        <option name="unit">MB</option>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Panel 5: Traffic Density Over Time</title>
+        <search>
+          <query>index=web_security_logs status="$status_tok$" method="$method_tok$" ip="$ip_tok$" $traffic_scope_tok$ | timechart span=1m count</query>
+          <earliest>$time_tok.earliest$</earliest>
+          <latest>$time_tok.latest$</latest>
+        </search>
+        <option name="charting.chart">area</option>
+        <option name="charting.legend.placement">none</option>
+      </chart>
+    </panel>
+    <panel>
+      <chart>
+        <title>Panel 6: Status Codes Breakdown Over Time</title>
+        <search>
+          <query>index=web_security_logs status="$status_tok$" method="$method_tok$" ip="$ip_tok$" $traffic_scope_tok$ | timechart span=1m count by status</query>
+          <earliest>$time_tok.earliest$</earliest>
+          <latest>$time_tok.latest$</latest>
+        </search>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.stackMode">stacked</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Panel 7: Security Tools &amp; Automated Scanners</title>
+        <search>
+          <query>index=web_security_logs status="$status_tok$" method="$method_tok$" ip="$ip_tok$" (user_agent="*sqlmap*" OR user_agent="*Nikto*" OR user_agent="*python-requests*" OR user_agent="*curl*" OR user_agent="*botnet-checker*") | stats count by user_agent</query>
+          <earliest>$time_tok.earliest$</earliest>
+          <latest>$time_tok.latest$</latest>
+        </search>
+        <option name="charting.chart">pie</option>
+      </chart>
+    </panel>
+    <panel>
+      <chart>
+        <title>Panel 8: Top 10 Attacking / Active Source IPs</title>
+        <search>
+          <query>index=web_security_logs status="$status_tok$" method="$method_tok$" ip="$ip_tok$" $traffic_scope_tok$ | stats count by ip | sort - count | head 10</query>
+          <earliest>$time_tok.earliest$</earliest>
+          <latest>$time_tok.latest$</latest>
+        </search>
+        <option name="charting.chart">bar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>Panel 9: Injection &amp; Exploit Attempts Payload Breakdown</title>
+        <search>
+          <query>index=web_security_logs status="$status_tok$" method="$method_tok$" ip="$ip_tok$" $traffic_scope_tok$ (uri="*UNION*" OR uri="*script*" OR uri="*passwd*" OR uri="*shadow*" OR uri="*.git*") | table timestamp, ip, uri, user_agent</query>
+          <earliest>$time_tok.earliest$</earliest>
+          <latest>$time_tok.latest$</latest>
+        </search>
+        <option name="count">5</option>
+      </table>
+    </panel>
+    <panel>
+      <chart>
+        <title>Panel 10: Referral Spam &amp; Phishing Domain Sources</title>
+        <search>
+          <query>index=web_security_logs status="$status_tok$" method="$method_tok$" ip="$ip_tok$" $traffic_scope_tok$ referrer!="-" | stats count by referrer</query>
+          <earliest>$time_tok.earliest$</earliest>
+          <latest>$time_tok.latest$</latest>
+        </search>
+        <option name="charting.chart">pie</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Panel 11: Top 10 Requested URIs / Endpoints</title>
+        <search>
+          <query>index=web_security_logs status="$status_tok$" method="$method_tok$" ip="$ip_tok$" $traffic_scope_tok$ | stats count by uri | sort - count | head 10</query>
+          <earliest>$time_tok.earliest$</earliest>
+          <latest>$time_tok.latest$</latest>
+        </search>
+        <option name="charting.chart">bar</option>
+      </chart>
+    </panel>
+    <panel>
+      <table>
+        <title>Panel 12: Sensitive Endpoint Probing (Admin Areas)</title>
+        <search>
+          <query>index=web_security_logs status="$status_tok$" method="$method_tok$" ip="$ip_tok$" $traffic_scope_tok$ (uri="*admin*" OR uri="*phpmyadmin*" OR uri="*private*" OR uri="*forbidden*") | table timestamp, ip, uri, status, user_agent</query>
+          <earliest>$time_tok.earliest$</earliest>
+          <latest>$time_tok.latest$</latest>
+        </search>
+        <option name="count">5</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Panel 13: HTTP Response Status Distribution</title>
+        <search>
+          <query>index=web_security_logs method="$method_tok$" ip="$ip_tok$" $traffic_scope_tok$ | stats count by status</query>
+          <earliest>$time_tok.earliest$</earliest>
+          <latest>$time_tok.latest$</latest>
+        </search>
+        <option name="charting.chart">pie</option>
+      </chart>
+    </panel>
+    <panel>
+      <chart>
+        <title>Panel 14: Server Errors (5xx) Endpoint Breakdown</title>
+        <search>
+          <query>index=web_security_logs method="$method_tok$" ip="$ip_tok$" $traffic_scope_tok$ (status=500 OR status=503) | stats count by uri</query>
+          <earliest>$time_tok.earliest$</earliest>
+          <latest>$time_tok.latest$</latest>
+        </search>
+        <option name="charting.chart">column</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Panel 15: Search Engine Crawlers &amp; Bot Traffic</title>
+        <search>
+          <query>index=web_security_logs status="$status_tok$" method="$method_tok$" ip="$ip_tok$" (user_agent="*Bot*" OR user_agent="*bot*") | stats count by user_agent</query>
+          <earliest>$time_tok.earliest$</earliest>
+          <latest>$time_tok.latest$</latest>
+        </search>
+        <option name="charting.chart">column</option>
+      </chart>
+    </panel>
+    <panel>
+      <chart>
+        <title>Panel 16: Top 10 User-Agents Accessing Server</title>
+        <search>
+          <query>index=web_security_logs status="$status_tok$" method="$method_tok$" ip="$ip_tok$" $traffic_scope_tok$ | stats count by user_agent | sort - count | head 10</query>
+          <earliest>$time_tok.earliest$</earliest>
+          <latest>$time_tok.latest$</latest>
+        </search>
+        <option name="charting.chart">bar</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Panel 17: Bandwidth Consumed by Top Source IPs (Bytes)</title>
+        <search>
+          <query>index=web_security_logs status="$status_tok$" method="$method_tok$" ip="$ip_tok$" $traffic_scope_tok$ | stats sum(bytes) as TotalBytes by ip | sort - TotalBytes | head 10</query>
+          <earliest>$time_tok.earliest$</earliest>
+          <latest>$time_tok.latest$</latest>
+        </search>
+        <option name="charting.chart">column</option>
+      </chart>
+    </panel>
+    <panel>
+      <table>
+        <title>Panel 18: Path Traversal &amp; Sensitive File Scans</title>
+        <search>
+          <query>index=web_security_logs status="$status_tok$" method="$method_tok$" ip="$ip_tok$" $traffic_scope_tok$ (uri="*etc/passwd*" OR uri="*.git*" OR uri="*shadow*") | table timestamp, ip, uri, status, user_agent</query>
+          <earliest>$time_tok.earliest$</earliest>
+          <latest>$time_tok.latest$</latest>
+        </search>
+        <option name="count">5</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <chart>
+        <title>Panel 19: Forced Browsing / 404 Scan Attempts</title>
+        <search>
+          <query>index=web_security_logs status=404 method="$method_tok$" ip="$ip_tok$" $traffic_scope_tok$ | timechart span=1m count by ip</query>
+          <earliest>$time_tok.earliest$</earliest>
+          <latest>$time_tok.latest$</latest>
+        </search>
+        <option name="charting.chart">area</option>
+      </chart>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <title>Panel 20: Live Stream Security Log Events</title>
+        <search>
+          <query>index=web_security_logs status="$status_tok$" method="$method_tok$" ip="$ip_tok$" $traffic_scope_tok$ | table timestamp, ip, method, uri, status, bytes, referrer, user_agent | sort - timestamp</query>
+          <earliest>$time_tok.earliest$</earliest>
+          <latest>$time_tok.latest$</latest>
+        </search>
+        <option name="count">10</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+</form>
